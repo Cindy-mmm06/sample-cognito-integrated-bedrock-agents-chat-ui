@@ -21,6 +21,7 @@ import PropTypes from 'prop-types';
 import * as AWSAuth from '@aws-amplify/auth';
 import { BedrockAgentRuntimeClient, InvokeAgentCommand } from "@aws-sdk/client-bedrock-agent-runtime";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
+import BedrockService from './BedrockService';
 import './ChatComponent.css';
 
 /**
@@ -249,50 +250,80 @@ const ChatComponent = ({ user, onLogout, onConfigEditorClick }) => {
         // Handle Bedrock Agent
         if (!isStrandsAgent && bedrockClient) {
           const bedrockConfig = appConfig.bedrock;
-          const sessionAttributes = {
-            aws_session: await AWSAuth.fetchAuthSession()
-          };
-
-          const command = new InvokeAgentCommand({
-            agentId: bedrockConfig.agentId,
-            agentAliasId: bedrockConfig.agentAliasId,
-            sessionId: sessionId,
-            endSession: false,
-            enableTrace: true,
-            inputText: newMessage,
-            promptSessionAttributes: sessionAttributes
-          });
-
-          let completion = "";
-          const response = await bedrockClient.send(command);
-
-          if (response.completion === undefined) {
-            throw new Error("Completion is undefined");
-          }
-
-          for await (const chunkEvent of response.completion) {
-            if (chunkEvent.trace) {
-              console.log("Trace: ", chunkEvent.trace);
-              tasksCompleted.count++;
-              if (typeof (chunkEvent.trace.trace.failureTrace) !== 'undefined') {
-                throw new Error(chunkEvent.trace.trace.failureTrace.failureReason);
+          
+          // Feature flag: use Lambda proxy or direct Bedrock call
+          const useLambdaProxy = appConfig.bedrock?.useLambdaProxy || false;
+          
+          if (useLambdaProxy) {
+            // Use Lambda proxy
+            try {
+              const response = await BedrockService.invokeAgent({
+                inputText: newMessage,
+                agentId: bedrockConfig.agentId,
+                agentAliasId: bedrockConfig.agentAliasId,
+                sessionId: sessionId,
+                region: bedrockConfig.region
+              });
+              
+              agentMessage = { text: response.completion, sender: agentName.value };
+              
+              // Handle traces if available
+              if (response.traces && response.traces.length > 0) {
+                console.log('Traces:', response.traces);
+                tasksCompleted.count = response.traces.length;
+                setTasksCompleted({ ...tasksCompleted });
               }
-
-              if (chunkEvent.trace.trace.orchestrationTrace.rationale) {
-                tasksCompleted.latestRationale = chunkEvent.trace.trace.orchestrationTrace.rationale.text;
-                scrollToBottom();
-              }
-              setTasksCompleted({ ...tasksCompleted });
-
-            } else if (chunkEvent.chunk) {
-              const chunk = chunkEvent.chunk;
-              const decodedResponse = new TextDecoder("utf-8").decode(chunk.bytes);
-              completion += decodedResponse;
+            } catch (error) {
+              console.error('Lambda proxy error:', error);
+              throw error;
             }
-          }
+          } else {
+            // Direct Bedrock call (existing logic)
+            const sessionAttributes = {
+              aws_session: await AWSAuth.fetchAuthSession()
+            };
 
-          console.log('Full completion:', completion);
-          agentMessage = { text: completion, sender: agentName.value };
+            const command = new InvokeAgentCommand({
+              agentId: bedrockConfig.agentId,
+              agentAliasId: bedrockConfig.agentAliasId,
+              sessionId: sessionId,
+              endSession: false,
+              enableTrace: true,
+              inputText: newMessage,
+              promptSessionAttributes: sessionAttributes
+            });
+
+            let completion = "";
+            const response = await bedrockClient.send(command);
+
+            if (response.completion === undefined) {
+              throw new Error("Completion is undefined");
+            }
+
+            for await (const chunkEvent of response.completion) {
+              if (chunkEvent.trace) {
+                console.log("Trace: ", chunkEvent.trace);
+                tasksCompleted.count++;
+                if (typeof (chunkEvent.trace.trace.failureTrace) !== 'undefined') {
+                  throw new Error(chunkEvent.trace.trace.failureTrace.failureReason);
+                }
+
+                if (chunkEvent.trace.trace.orchestrationTrace.rationale) {
+                  tasksCompleted.latestRationale = chunkEvent.trace.trace.orchestrationTrace.rationale.text;
+                  scrollToBottom();
+                }
+                setTasksCompleted({ ...tasksCompleted });
+
+              } else if (chunkEvent.chunk) {
+                const chunk = chunkEvent.chunk;
+                const decodedResponse = new TextDecoder("utf-8").decode(chunk.bytes);
+                completion += decodedResponse;
+              }
+            }
+
+            console.log('Full completion:', completion);
+            agentMessage = { text: completion, sender: agentName.value };
+          }
         } 
         // Handle Strands Agent
         else if (isStrandsAgent && lambdaClient) {

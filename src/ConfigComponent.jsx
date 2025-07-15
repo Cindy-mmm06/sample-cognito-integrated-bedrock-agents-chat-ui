@@ -39,7 +39,8 @@ const ConfigComponent = ({ onConfigSet, isEditingConfig, setEditingConfig }) => 
       agentName: '',
       agentId: '',
       agentAliasId: '',
-      region: ''
+      region: '',
+      useLambdaProxy: false
     },
     strands: {
       enabled: false,
@@ -366,6 +367,24 @@ const ConfigComponent = ({ onConfigSet, isEditingConfig, setEditingConfig }) => 
                             handleInputChange('bedrock', 'region', detail.value);
                             setErrors({...errors, bedrockRegion: ''});
                           }}
+                        />
+                      </FormField>
+                      <FormField 
+                        label="Use Lambda Proxy"
+                        description="Route requests through Lambda for enhanced security and monitoring"
+                      >
+                        <Select
+                          selectedOption={{
+                            value: config.bedrock.useLambdaProxy ? 'true' : 'false',
+                            label: config.bedrock.useLambdaProxy ? 'Enabled' : 'Disabled'
+                          }}
+                          onChange={({ detail }) => {
+                            handleInputChange('bedrock', 'useLambdaProxy', detail.selectedOption.value === 'true');
+                          }}
+                          options={[
+                            { value: 'false', label: 'Disabled (Direct Bedrock calls)' },
+                            { value: 'true', label: 'Enabled (Lambda proxy)' }
+                          ]}
                         />
                       </FormField>
                     </SpaceBetween>
