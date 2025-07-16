@@ -1,5 +1,4 @@
 import { fetchAuthSession } from '@aws-amplify/auth';
-import { Amplify } from 'aws-amplify';
 
 class BedrockService {
   constructor() {
@@ -8,21 +7,16 @@ class BedrockService {
 
   async initialize() {
     try {
-      // Get the API endpoint from Amplify configuration
-      const amplifyConfig = Amplify.getConfig();
+      // For now, use manual configuration
+      const config = JSON.parse(localStorage.getItem('appConfig') || '{}');
       
-      // Check if we have a custom API endpoint in outputs
-      if (amplifyConfig.custom?.API) {
-        const apiConfig = Object.values(amplifyConfig.custom.API)[0];
-        this.apiEndpoint = apiConfig.endpoint;
+      // Check if API endpoint is manually configured
+      if (config.apiEndpoint) {
+        this.apiEndpoint = config.apiEndpoint;
+        console.log('Using configured API endpoint:', this.apiEndpoint);
       } else {
-        // Fallback to environment variable or manual configuration
-        const config = JSON.parse(localStorage.getItem('appConfig') || '{}');
-        this.apiEndpoint = process.env.REACT_APP_API_ENDPOINT || config?.apiEndpoint;
-      }
-      
-      if (!this.apiEndpoint) {
         console.warn('No API endpoint configured. Lambda proxy will not work.');
+        console.warn('Please add your API Gateway URL to the configuration.');
       }
     } catch (error) {
       console.error('Error initializing BedrockService:', error);
@@ -34,6 +28,7 @@ class BedrockService {
       await this.initialize();
     }
 
+    // If no API endpoint and Lambda proxy is enabled, show error
     if (!this.apiEndpoint) {
       throw new Error('API endpoint not configured. Please check your Amplify setup.');
     }

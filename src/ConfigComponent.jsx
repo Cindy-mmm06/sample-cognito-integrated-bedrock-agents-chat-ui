@@ -47,7 +47,8 @@ const ConfigComponent = ({ onConfigSet, isEditingConfig, setEditingConfig }) => 
       lambdaArn: '',
       agentName: 'Strands Agent',
       region: ''
-    }
+    },
+    apiEndpoint: ''
   });
   const [errors, setErrors] = useState({});
 
@@ -387,6 +388,25 @@ const ConfigComponent = ({ onConfigSet, isEditingConfig, setEditingConfig }) => 
                           ]}
                         />
                       </FormField>
+                      {config.bedrock.useLambdaProxy && (
+                        <FormField 
+                          label="API Endpoint URL" 
+                          description="The URL of your API Gateway endpoint (from Amplify deployment output)"
+                          errorText={errors.apiEndpoint}
+                        >
+                          <Input
+                            value={config.apiEndpoint}
+                            placeholder='e.g. https://abc123def.execute-api.us-east-1.amazonaws.com/prod/chat'
+                            onChange={({ detail }) => {
+                              setConfig(prevConfig => ({
+                                ...prevConfig,
+                                apiEndpoint: detail.value
+                              }));
+                              setErrors({...errors, apiEndpoint: ''});
+                            }}
+                          />
+                        </FormField>
+                      )}
                     </SpaceBetween>
                   </Container>
                 )}

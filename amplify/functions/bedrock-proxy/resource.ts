@@ -9,3 +9,4 @@ export const bedrockProxy = defineFunction({
   runtime: 20,
   timeoutSeconds: 300, // 5 minutes for longer Bedrock responses
 });
+
