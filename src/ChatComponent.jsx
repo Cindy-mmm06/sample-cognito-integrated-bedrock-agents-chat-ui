@@ -153,7 +153,13 @@ const ChatComponent = ({ user, onLogout, onConfigEditorClick }) => {
       // If found, restore the session and its messages
       setSessionId(lastSessionId);
       const loadedMessages = fetchMessagesForSession(lastSessionId);
-      setMessages(loadedMessages);
+      
+      // Validate messages before setting them
+      const validMessages = loadedMessages.filter(msg => 
+        msg && typeof msg === 'object' && msg.text && msg.sender
+      );
+      
+      setMessages(validMessages);
     } else {
       // If no existing session, create a new one
       createNewSession();
@@ -485,18 +491,18 @@ const ChatComponent = ({ user, onLogout, onConfigEditorClick }) => {
             {messages.map((message, index) => (
               <div key={index}>
                 <ChatBubble
-                  ariaLabel={`${message.sender} message`}
-                  type={message.sender === user.username ? "outgoing" : "incoming"}
+                  ariaLabel={`${message.sender || 'Unknown'} message`}
+                  type={(message.sender || '') === user.username ? "outgoing" : "incoming"}
                   avatar={
                     <Avatar
-                      ariaLabel={message.sender}
-                      tooltipText={message.sender}
-                      color={message.sender === user.username ? "default" : "gen-ai"}
-                      initials={message.sender.substring(0, 2).toUpperCase()}
+                      ariaLabel={message.sender || 'Unknown'}
+                      tooltipText={message.sender || 'Unknown'}
+                      color={(message.sender || '') === user.username ? "default" : "gen-ai"}
+                      initials={(message.sender || '??').substring(0, 2).toUpperCase()}
                     />
                   }
                 >
-                  {message.text.split('\n').map((line, i) => (
+                  {(message.text || "").split('\n').map((line, i) => (
                     <ReactMarkdown
                       key={'md-rendering' + i}
                       rehypePlugins={[rehypeRaw]} // Enables HTML parsing
