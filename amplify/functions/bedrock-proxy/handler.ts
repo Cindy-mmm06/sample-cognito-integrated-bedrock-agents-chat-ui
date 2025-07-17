@@ -71,17 +71,23 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     });
 
     // Invoke the agent
+    console.log('Sending request to Bedrock:', JSON.stringify(command));
     const response = await bedrockClient.send(command);
+    console.log('Raw Bedrock response:', JSON.stringify(response));
 
     if (!response.completion) {
+      console.error('No completion in response');
       throw new Error('No completion received from Bedrock');
     }
 
     // Process the streaming response
     let completion = '';
     let traces: any[] = [];
-
+    let chunkCount = 0;
+    
+    console.log('Starting to process completion stream');
     for await (const chunkEvent of response.completion) {
+      chunkCount++;
       if (chunkEvent.trace) {
         traces.push(chunkEvent.trace);
         
@@ -96,13 +102,19 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       }
     }
 
+    console.log(`Processed ${chunkCount} chunks, final completion length: ${completion.length}`);
+    
+    const responseBody = {
+      completion,
+      traces: traces.length > 0 ? traces : undefined
+    };
+    
+    console.log('Sending response:', JSON.stringify(responseBody));
+    
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({
-        completion,
-        traces: traces.length > 0 ? traces : undefined
-      })
+      body: JSON.stringify(responseBody)
     };
 
   } catch (error) {

@@ -271,7 +271,10 @@ const ChatComponent = ({ user, onLogout, onConfigEditorClick }) => {
                 region: bedrockConfig.region
               });
               
-              agentMessage = { text: response.completion, sender: agentName.value };
+              // Handle null or undefined response
+              const responseText = response?.completion || "I'm sorry, I couldn't generate a response.";
+              agentMessage = { text: responseText, sender: agentName.value };
+              console.log('Lambda proxy response:', response);
               
               // Handle traces if available
               if (response.traces && response.traces.length > 0) {

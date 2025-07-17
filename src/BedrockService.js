@@ -58,7 +58,15 @@ class BedrockService {
         throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      return await response.json();
+      const responseData = await response.json();
+      console.log('API response data:', responseData);
+      
+      // Validate response format
+      if (!responseData || responseData.completion === undefined) {
+        console.warn('Invalid API response format:', responseData);
+      }
+      
+      return responseData;
     } catch (error) {
       console.error('BedrockService error:', error);
       throw error;
